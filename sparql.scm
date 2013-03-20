@@ -32,7 +32,10 @@
   (term doppelganger->term))
 
 (set-record-type-printer! :doppelganger
-  (lambda (d) `(referent-of ,(doppelganger->term d))))
+  (lambda (d port)
+    (write-char #\< port)
+    (display (doppelganger->term d) port)
+    (write-char #\> port)))
 
 ; Write as Turtle or SPARQL
 ; In the future, maybe, make this exploit namespaces
