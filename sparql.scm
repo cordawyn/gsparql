@@ -1,7 +1,7 @@
 ; In this theory of SPARQL, we have 'predicates' which are n-place
 ; abstractions of statements (or graphs).  A one-place predicate is
 ; a class and a two-place predicate is a property.  A SPARQL SELECT
-; is an n-place predicate where n = the number of variables (columns 
+; is an n-place predicate where n = the number of variables (columns
 ; in result set).
 ;
 
@@ -18,21 +18,20 @@
 ; (where the body is an implicit conjunction) evaluates to something
 ; that can be rendered as a SPARQL SELECT.
 
-"
-,open define-record-types signals
-"
+(use-modules (srfi srfi-9))
+(use-modules (srfi srfi-9 gnu))
 
 ; Better to have separate creators for individuals, classes, and properties
 
 ; The doppelganger is not the thing itself, but rather a Scheme object
 ; that, inside the Scheme address space, stands for the thing
 
-(define-record-type doppelganger :doppelganger
+(define-record-type :doppelganger
   (make-doppelganger term)
   doppelganger?
   (term doppelganger->term))
 
-(define-record-discloser :doppelganger
+(set-record-type-printer! :doppelganger
   (lambda (d) `(referent-of ,(doppelganger->term d))))
 
 ; Write as Turtle or SPARQL
@@ -42,19 +41,25 @@
 (define (write-doppelganger d port)
   (display (doppelganger->term d) port))
 
-(define unterm 
-  (let ((reg (regex "^<(.*)>$")))
-    (lambda (term)
-      (let ((match (regex-match reg term)))
-	(if match
-	    (*:get match 1)  ;; "regex-match" returns a java.util.LinkedList, gah.
-	    term)))))
+(define (unterm term)
+  (let ((match (string-match "^<(.*)>$" term)))
+    (if match
+      (match:substring match 1)
+      term)))
+
+;; (define unterm
+;;   (let ((reg (regex "^<(.*)>$")))
+;;     (lambda (term)
+;;       (let ((match (regex-match reg term)))
+;;	(if match
+;;	    (*:get match 1)  ;; "regex-match" returns a java.util.LinkedList, gah.
+;;	    term)))))
 
 (define (contract ns uri)
   (ns 'contract uri))
 
 (define (undoppel v)
-  (if (doppelganger? v) 
+  (if (doppelganger? v)
       (doppelganger->term v)
       v))
 
@@ -124,8 +129,8 @@
     ((conjunction)
      (for-each (lambda (stmt) (write-statement stmt port))
 	       (cdr stmt)))
-    ((union) 
-     (begin 
+    ((union)
+     (begin
        (let ((blocks (map (lambda (stmt)
 			    (let* ((strport (open-output-string))
 				   (body (write-statement stmt strport)))
@@ -133,7 +138,7 @@
 			  (cdr stmt))))
 	 (display (fold (lambda (b1 b2)
 			  (string-append b1 " UNION " b2))
-			"" 
+			""
 			blocks)
 		  port))))
     (else
@@ -182,7 +187,7 @@
 
 ; > (v s o)
 ; '(vso (referent-of "data:x") (referent-of "data:s") (referent-of "data:o"))
-; > 
+; >
 )
 
 ;-----------------------------------------------------------------------------
@@ -238,7 +243,7 @@
     (let ((vars (cadr pred-form))
 	  (body (caddr pred-form)))
       (display "select" port)
-      (if distinct? 
+      (if distinct?
 	  (display " distinct" port)
 	  #f)
       (for-each (lambda (var) (display " " port) (write var port))
@@ -254,19 +259,19 @@
 	  #f)
       (newline port))))
 
-(define (pred->select pred distinct? limit) 
+(define (pred->select pred distinct? limit)
   (let ((port (open-output-string)))
     (write-predicate-as-select pred port distinct? limit)
     (get-output-string port)))
 
-(define (web-endpoint name) 
+(define (web-endpoint name)
   (<org.neurocommons.sparql.QueryManager>:createEndpoint name))
 
 (define (raw-query endpoint querystring)
   (*:executeQuery endpoint querystring))
 
 (define (as-prefix ns)
-  (string-append 
+  (string-append
    "prefix " (ns 'contract (ns))
    " <" (ns) ">"))
 
@@ -286,8 +291,8 @@
 (define (pose-query endpoint predicate distinct? limit)
   (let ((queryout (open-output-string)))
     (write-predicate-as-select predicate queryout distinct? limit)
-    (parse-query-results 
-     (*:parseQuery endpoint 
+    (parse-query-results
+     (*:parseQuery endpoint
 		   (*:executeQuery endpoint (get-output-string queryout))))))
 
 
@@ -311,9 +316,8 @@
 	 indices)))
 
 (define (parse-term term)
-  (cond 
-  	((*:isLiteral term) (*:toString term))
+  (cond
+	((*:isLiteral term) (*:toString term))
 	((*:isURI term) (individual-named (*:toString term)))
 	((*:isBlankNode term) (bnode-named (*:toString term)))
 	(_ '())))
-
