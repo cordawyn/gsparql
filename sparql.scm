@@ -20,6 +20,7 @@
 
 ; TODO: Use (standard) URI objects instead of strings?
 
+(use-modules (srfi srfi-1))
 (use-modules (srfi srfi-9))
 (use-modules (srfi srfi-9 gnu))
 
@@ -125,17 +126,16 @@
      (for-each (lambda (stmt) (write-statement stmt port))
 	       (cdr stmt)))
     ((union)
-     (begin
-       (let ((blocks (map (lambda (stmt)
-			    (let* ((strport (open-output-string))
-				   (body (write-statement stmt strport)))
-			      (string-append "{ " (get-output-string strport) " }")))
-			  (cdr stmt))))
-	 (display (fold (lambda (b1 b2)
-			  (string-append b1 " UNION " b2))
-			""
-			blocks)
-		  port))))
+     (let ((blocks (map (lambda (stmt)
+			  (let* ((strport (open-output-string))
+				 (body (write-statement stmt strport)))
+			    (string-append "{ " (get-output-string strport) " }")))
+			(cdr stmt))))
+       (display (fold-right (lambda (b1 b2)
+			(string-append b1 " UNION " b2))
+		      (car blocks)
+		      (cdr blocks))
+		port)))
     (else
      (error "inscrutable statement" stmt))))
 
@@ -148,8 +148,7 @@
   (write-nonliteral-term (cadr vso) port)	;then verb
   (display " " port)
   (write-term (cadddr vso) port)	;object can be a literal
-  (display " ." port)
-  (newline port))
+  (display " ." port))
 
 ; Add error checks later
 
