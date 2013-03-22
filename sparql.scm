@@ -34,16 +34,16 @@
   (term doppelganger->term))
 
 (set-record-type-printer! doppelganger
-  (lambda (d port)
-    (write-char #\< port)
-    (write-doppelganger d port)
-    (write-char #\> port)))
+  (lambda (d port) (write-doppelganger d port)))
 
 ; Write as Turtle or SPARQL
 ; In the future, maybe, make this exploit namespaces
 ; TBD: worry about escaping (a URI containing >, \, or ")
 (define (write-doppelganger d port)
-  (display (doppelganger->term d) port))
+  (begin
+    (write-char #\< port)
+    (display (doppelganger->term d) port)
+    (write-char #\> port)))
 
 (define (unterm term)
   (let ((match (string-match "^<(.*)>$" term)))
@@ -61,11 +61,9 @@
       v))
 
 ; Consider alternative name <> since that's how it's written in N3
-; TODO: Is it proper to add <> to uri, instead of displaying it
-;       with <> as written in "set-record-type-printer!"?
 ; TODO: Why the need for "referent-of" when we have "make-doppelganger"?
 (define (referent-of uri)
-  (make-doppelganger (string-append "<" uri ">")))
+  (make-doppelganger uri))
 
 (define (individual-named uri)
   (referent-of uri))
