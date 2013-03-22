@@ -18,6 +18,8 @@
 ; (where the body is an implicit conjunction) evaluates to something
 ; that can be rendered as a SPARQL SELECT.
 
+; TODO: Use (standard) URI objects instead of strings?
+
 (use-modules (srfi srfi-9))
 (use-modules (srfi srfi-9 gnu))
 
@@ -26,21 +28,20 @@
 ; The doppelganger is not the thing itself, but rather a Scheme object
 ; that, inside the Scheme address space, stands for the thing
 
-(define-record-type :doppelganger
+(define-record-type doppelganger
   (make-doppelganger term)
   doppelganger?
   (term doppelganger->term))
 
-(set-record-type-printer! :doppelganger
+(set-record-type-printer! doppelganger
   (lambda (d port)
     (write-char #\< port)
-    (display (doppelganger->term d) port)
+    (write-doppelganger d port)
     (write-char #\> port)))
 
 ; Write as Turtle or SPARQL
 ; In the future, maybe, make this exploit namespaces
 ; TBD: worry about escaping (a URI containing >, \, or ")
-
 (define (write-doppelganger d port)
   (display (doppelganger->term d) port))
 
@@ -50,14 +51,7 @@
       (match:substring match 1)
       term)))
 
-;; (define unterm
-;;   (let ((reg (regex "^<(.*)>$")))
-;;     (lambda (term)
-;;       (let ((match (regex-match reg term)))
-;;	(if match
-;;	    (*:get match 1)  ;; "regex-match" returns a java.util.LinkedList, gah.
-;;	    term)))))
-
+; TODO: not used?
 (define (contract ns uri)
   (ns 'contract uri))
 
@@ -67,7 +61,9 @@
       v))
 
 ; Consider alternative name <> since that's how it's written in N3
-
+; TODO: Is it proper to add <> to uri, instead of displaying it
+;       with <> as written in "set-record-type-printer!"?
+; TODO: Why the need for "referent-of" when we have "make-doppelganger"?
 (define (referent-of uri)
   (make-doppelganger (string-append "<" uri ">")))
 
@@ -75,7 +71,6 @@
   (referent-of uri))
 
 ; property = two-place predicate
-
 (define (property-named uri)
   (let ((r (referent-of uri)))
     (lambda args
@@ -97,11 +92,11 @@
       ;; URI, literal, or blank-node notation
       thing))
 
-; class = one-place predicate
-
 (define has-type
+  ; TODO: Use a constant instead of a hard-coded URI?
   (property-named "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
 
+; class = one-place predicate
 (define (class-named uri)
   (let ((r (referent-of uri)))
     (lambda args
@@ -113,7 +108,6 @@
 	    (else (error "too many arguments" uri args))))))
 
 ; Implicit AND of a query body or a graph
-
 (define (conjunction . statements)
   (if (and (pair? statements)
 	   (null? (cdr statements)))
